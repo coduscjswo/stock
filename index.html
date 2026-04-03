@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%231E6FEB'/><text x='50' y='38' text-anchor='middle' dominant-baseline='middle' font-size='22' font-weight='bold' fill='white'>%EB%B6%80%EC%9E%90</text><text x='50' y='64' text-anchor='middle' dominant-baseline='middle' font-size='22' font-weight='bold' fill='white'>%EC%B1%84%EC%97%B0</text></svg>">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>국내 주식 대시보드 (v2)</title>
+    <meta name="description" content="실시간 국내 주식 대시보드 - KOSPI, KOSDAQ, 급등종목, 인기종목, 내 포트폴리오">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0d1117;--card:#161b22;--card2:#1c2333;--text:#e6edf3;--text2:#7d8590;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--border:#30363d;--radius:12px}
+        body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        .nav{position:sticky;top:0;z-index:100;background:rgba(13,17,23,.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;justify-content:space-between;align-items:center}
+        .nav-logo{font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px}
+        .nav-right{display:flex;align-items:center;gap:16px}
+        .nav-links{display:flex;gap:4px}
+        .nav-links a{padding:8px 20px;border-radius:8px;text-decoration:none;color:var(--text2);font-weight:500;transition:all .2s;font-size:14px}
+        .nav-links a.active{background:var(--accent);color:#fff}
+        .nav-links a:hover:not(.active){background:var(--card);color:var(--text)}
+        .clock{color:var(--text2);font-size:13px;font-variant-numeric:tabular-nums}
+        .market-status{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500}
+        .status-dot{width:8px;height:8px;border-radius:50%;animation:pulse 2s infinite}
+        .status-open{background:var(--green)}
+        .status-closed{background:var(--red)}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+        .container{max-width:1400px;margin:0 auto;padding:20px}
+        .section{margin-bottom:28px}
+        .section-title{font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        .section-title i{color:var(--accent)}
+        .index-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        .index-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;height:480px}
+        .index-card-label{padding:12px 16px 0;font-size:15px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px}
+        .tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--card);padding:4px;border-radius:10px;width:fit-content}
+        .tab{padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:500;color:var(--text2);transition:all .2s;border:none;background:none;font-family:inherit;font-size:14px}
+        .tab.active{background:var(--accent);color:#fff}
+        .tab:hover:not(.active){color:var(--text);background:var(--card2)}
+        .tab-content{display:none}
+        .tab-content.active{display:block}
+        .widget-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+        .portfolio-header{display:flex;gap:12px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
+        .stock-input{flex:1;min-width:200px;padding:12px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:inherit;font-size:14px;outline:none}
+        .stock-input:focus{border-color:var(--accent)}
+        .stock-input::placeholder{color:var(--text2)}
+        .add-btn{padding:12px 24px;border-radius:8px;background:var(--accent);color:#fff;border:none;font-weight:600;cursor:pointer;font-family:inherit;font-size:14px;transition:opacity .2s;white-space:nowrap}
+        .add-btn:hover{opacity:.85}
+        .clear-all-btn{padding:12px 18px;border-radius:8px;background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.3);font-weight:500;cursor:pointer;font-family:inherit;font-size:13px;transition:all .2s;white-space:nowrap}
+        .clear-all-btn:hover{background:rgba(248,81,73,.25)}
+        .helper-text{color:var(--text2);font-size:12px;margin-bottom:16px}
+        .portfolio-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+        .portfolio-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+        .portfolio-card-header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card2);border-bottom:1px solid var(--border)}
+        .portfolio-card-title{font-size:13px;font-weight:600;color:var(--text)}
+        .remove-btn{width:26px;height:26px;border-radius:6px;background:rgba(248,81,73,.12);border:1px solid rgba(248,81,73,.2);color:var(--red);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s}
+        .remove-btn:hover{background:rgba(248,81,73,.3);border-color:var(--red)}
+        .portfolio-widget{height:200px}
+        .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        .empty-state{text-align:center;padding:60px 20px;color:var(--text2)}
+        .empty-state i{font-size:48px;margin-bottom:16px;opacity:.5}
+        .empty-state p{font-size:14px}
+        .suggest-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;justify-content:center}
+        .suggest-chip{padding:6px 14px;border-radius:20px;background:var(--card2);border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;transition:all .2s}
+        .suggest-chip:hover{border-color:var(--accent);color:var(--accent)}
+        .tab-desc{color:var(--text2);font-size:13px;margin-bottom:12px;padding:0 4px}
+        .footer{text-align:center;padding:32px 24px;color:var(--text2);font-size:12px;border-top:1px solid var(--border);margin-top:40px}
+        @media(max-width:768px){
+            .index-grid,.info-grid{grid-template-columns:1fr}
+            .portfolio-grid{grid-template-columns:1fr}
+            .nav{padding:10px 16px;flex-wrap:wrap;gap:8px}
+            .nav-right{width:100%;justify-content:space-between}
+            .container{padding:12px}
+            .index-card{height:380px}
+            .tabs{overflow-x:auto;width:100%}
+        }
+        ::-webkit-scrollbar{width:6px}
+        ::-webkit-scrollbar-track{background:var(--bg)}
+        ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-logo">📈 주식 대시보드</div>
+        <div class="nav-right">
+            <div class="market-status">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">시장 확인 중...</span>
+            </div>
+            <div class="clock" id="clock"></div>
+            <div class="nav-links">
+                <a href="#" class="active">🇰🇷 국내</a>
+                <a href="미장.html">🇺🇸 미국</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Ticker Tape -->
+    <div class="tradingview-widget-container">
+        <div class="tradingview-widget-container__widget"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js">
+        {
+            "symbols":[
+                {"proName":"KRX:KOSPI","title":"KOSPI"},
+                {"proName":"KRX:KOSDAQ","title":"KOSDAQ"},
+                {"proName":"FX_IDC:USDKRW","title":"USD/KRW"},
+                {"proName":"FX_IDC:JPYKRW","title":"JPY/KRW"},
+                {"proName":"TVC:GOLD","title":"금"},
+                {"proName":"CRYPTOCAP:BTC","title":"비트코인"},
+                {"proName":"NYMEX:CL1!","title":"WTI 원유"}
+            ],
+            "showSymbolLogo":true,
+            "colorTheme":"dark",
+            "isTransparent":true,
+            "displayMode":"adaptive",
+            "locale":"kr"
+        }
+        </script>
+    </div>
+
+    <div class="container">
+        <!-- 주요 지수 -->
+        <div class="section">
+            <div class="section-title"><i class="fas fa-chart-line"></i> 주요 지수</div>
+            <!-- KOSPI / KOSDAQ 실시간 차트 (Investing.com 임베딩 - 지수 심볼 제한 없음) -->
+            <div class="index-grid">
+                <div class="index-card">
+                    <div class="index-card-label">📊 KOSPI 종합지수</div>
+                    <iframe src="https://sslcharts.investing.com/index.php?force_lang=12&pair_ID=37426&timescale=300&candles=120&style=area" style="width:100%;height:calc(100% - 40px);border:none" allowtransparency="true" scrolling="no"></iframe>
+                </div>
+                <div class="index-card">
+                    <div class="index-card-label">📊 KOSDAQ 지수</div>
+                    <iframe src="https://sslcharts.investing.com/index.php?force_lang=12&pair_ID=37427&timescale=300&candles=120&style=area" style="width:100%;height:calc(100% - 40px);border:none" allowtransparency="true" scrolling="no"></iframe>
+                </div>
+            </div>
+            <!-- 글로벌 지수 비교 (TradingView - 해외 지수는 제한 없음) -->
+            <div class="widget-box" style="height:340px;margin-top:16px">
+                <div class="tradingview-widget-container" style="height:100%">
+                    <div class="tradingview-widget-container__widget" style="height:100%"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js">
+                    {
+                        "colorTheme":"dark",
+                        "dateRange":"1D",
+                        "showChart":true,
+                        "locale":"kr",
+                        "width":"100%",
+                        "height":"100%",
+                        "isTransparent":true,
+                        "showSymbolLogo":true,
+                        "showFloatingTooltip":true,
+                        "plotLineColorGrowing":"#3fb950",
+                        "plotLineColorFalling":"#f85149",
+                        "gridLineColor":"#1c2333",
+                        "scaleFontColor":"#7d8590",
+                        "belowLineFillColorGrowing":"rgba(63,185,80,0.08)",
+                        "belowLineFillColorFalling":"rgba(248,81,73,0.08)",
+                        "belowLineFillColorGrowingBottom":"rgba(63,185,80,0)",
+                        "belowLineFillColorFallingBottom":"rgba(248,81,73,0)",
+                        "symbolActiveColor":"rgba(88,166,255,0.15)",
+                        "tabs":[
+                            {
+                                "title":"글로벌 지수",
+                                "symbols":[
+                                    {"s":"FOREXCOM:SPXUSD","d":"S&P 500"},
+                                    {"s":"FOREXCOM:NSXUSD","d":"NASDAQ"},
+                                    {"s":"FOREXCOM:DJI","d":"다우존스"},
+                                    {"s":"INDEX:NKY","d":"닛케이 225"},
+                                    {"s":"INDEX:HSI","d":"항셍"}
+                                ]
+                            },
+                            {
+                                "title":"국내 ETF",
+                                "symbols":[
+                                    {"s":"KRX:069500","d":"KODEX 200"},
+                                    {"s":"KRX:229200","d":"KODEX KOSDAQ150"},
+                                    {"s":"KRX:102110","d":"TIGER 200"},
+                                    {"s":"KRX:252670","d":"KODEX 인버스"}
+                                ]
+                            }
+                        ]
+                    }
+                    </script>
+                </div>
+            </div>
+        </div>
+
+        <!-- 종목 현황 탭 -->
+        <div class="section">
+            <div class="section-title"><i class="fas fa-fire"></i> 종목 현황</div>
+            <div class="tabs">
+                <button class="tab active" data-tab="gainers">🔥 급등 종목</button>
+                <button class="tab" data-tab="popular">⭐ 인기 종목</button>
+                <button class="tab" data-tab="portfolio">💼 내 포트폴리오</button>
+            </div>
+
+            <div id="tab-gainers" class="tab-content active">
+                <div class="tab-desc">🔥 KRX 거래소에서 당일 급등 중인 종목을 실시간으로 보여줍니다. 종목을 클릭하면 미니 차트를 확인할 수 있어요.</div>
+                <div class="widget-box" style="height:600px">
+                    <div class="tradingview-widget-container" style="height:100%">
+                        <div class="tradingview-widget-container__widget" style="height:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-hotlists.js">
+                        {
+                            "colorTheme":"dark",
+                            "dateRange":"1D",
+                            "exchange":"KRX",
+                            "showChart":true,
+                            "locale":"kr",
+                            "isTransparent":true,
+                            "showSymbolLogo":true,
+                            "showFloatingTooltip":true,
+                            "width":"100%",
+                            "height":"100%",
+                            "plotLineColorGrowing":"#3fb950",
+                            "plotLineColorFalling":"#f85149",
+                            "gridLineColor":"#1c2333",
+                            "scaleFontColor":"#7d8590",
+                            "belowLineFillColorGrowing":"rgba(63,185,80,0.08)",
+                            "belowLineFillColorFalling":"rgba(248,81,73,0.08)",
+                            "belowLineFillColorGrowingBottom":"rgba(63,185,80,0)",
+                            "belowLineFillColorFallingBottom":"rgba(248,81,73,0)",
+                            "symbolActiveColor":"rgba(88,166,255,0.15)"
+                        }
+                        </script>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-popular" class="tab-content">
+                <div class="tab-desc">⭐ 한국 주식 시장 전체를 섹터별 히트맵으로 한눈에! 블록 크기는 시가총액, 색상은 등락률 기준입니다. 확대/축소 가능!</div>
+                <div class="widget-box" style="height:620px">
+                    <div class="tradingview-widget-container" style="height:100%">
+                        <div class="tradingview-widget-container__widget" style="height:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js">
+                        {
+                            "exchanges":["KRX"],
+                            "dataSource":"AllKR",
+                            "grouping":"sector",
+                            "blockSize":"market_cap_basic",
+                            "blockColor":"change",
+                            "locale":"kr",
+                            "symbolUrl":"",
+                            "colorTheme":"dark",
+                            "hasTopBar":true,
+                            "isDataSetEnabled":true,
+                            "isZoomEnabled":true,
+                            "hasSymbolTooltip":true,
+                            "width":"100%",
+                            "height":"100%"
+                        }
+                        </script>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-portfolio" class="tab-content">
+                <div class="portfolio-header">
+                    <input type="text" class="stock-input" id="stockInput" placeholder="종목 심볼 입력 (예: 005930, 035720)">
+                    <button class="add-btn" id="addBtn"><i class="fas fa-plus"></i> 추가</button>
+                    <button class="clear-all-btn" id="clearAllBtn" style="display:none"><i class="fas fa-trash"></i> 전체 삭제</button>
+                </div>
+                <div class="helper-text">KRX 종목코드를 입력하세요. 예: 삼성전자(005930), 카카오(035720), SK하이닉스(000660), NAVER(035420) · <strong>삭제</strong>: 각 카드 상단 ✕ 버튼 클릭</div>
+                <div id="portfolioGrid" class="portfolio-grid"></div>
+                <div id="emptyState" class="empty-state">
+                    <i class="fas fa-briefcase"></i>
+                    <p>아직 추가된 종목이 없습니다</p>
+                    <p style="margin-top:8px;font-size:13px">아래 추천 종목을 클릭하여 시작해보세요</p>
+                    <div class="suggest-list" id="suggestList">
+                        <span class="suggest-chip" data-code="005930">삼성전자</span>
+                        <span class="suggest-chip" data-code="000660">SK하이닉스</span>
+                        <span class="suggest-chip" data-code="035720">카카오</span>
+                        <span class="suggest-chip" data-code="005380">현대차</span>
+                        <span class="suggest-chip" data-code="006400">삼성SDI</span>
+                        <span class="suggest-chip" data-code="051910">LG화학</span>
+                        <span class="suggest-chip" data-code="035420">NAVER</span>
+                        <span class="suggest-chip" data-code="068270">셀트리온</span>
+                        <span class="suggest-chip" data-code="373220">LG에너지솔루션</span>
+                        <span class="suggest-chip" data-code="055550">신한지주</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 시장 정보 -->
+        <div class="section">
+            <div class="section-title"><i class="fas fa-globe"></i> 시장 정보</div>
+            <div class="info-grid">
+                <div class="widget-box" style="height:400px">
+                    <div class="tradingview-widget-container" style="height:100%">
+                        <div class="tradingview-widget-container__widget" style="height:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js">
+                        {
+                            "colorTheme":"dark",
+                            "dateRange":"1D",
+                            "showChart":true,
+                            "locale":"kr",
+                            "width":"100%",
+                            "height":"100%",
+                            "isTransparent":true,
+                            "showSymbolLogo":true,
+                            "showFloatingTooltip":true,
+                            "tabs":[
+                                {
+                                    "title":"환율",
+                                    "symbols":[
+                                        {"s":"FX_IDC:USDKRW","d":"달러/원"},
+                                        {"s":"FX_IDC:EURKRW","d":"유로/원"},
+                                        {"s":"FX_IDC:JPYKRW","d":"엔/원"},
+                                        {"s":"FX_IDC:CNYKRW","d":"위안/원"},
+                                        {"s":"FX_IDC:GBPKRW","d":"파운드/원"}
+                                    ]
+                                },
+                                {
+                                    "title":"원자재",
+                                    "symbols":[
+                                        {"s":"TVC:GOLD","d":"금"},
+                                        {"s":"TVC:SILVER","d":"은"},
+                                        {"s":"NYMEX:CL1!","d":"WTI 원유"},
+                                        {"s":"NYMEX:NG1!","d":"천연가스"}
+                                    ]
+                                },
+                                {
+                                    "title":"암호화폐",
+                                    "symbols":[
+                                        {"s":"CRYPTOCAP:BTC","d":"비트코인"},
+                                        {"s":"CRYPTOCAP:ETH","d":"이더리움"},
+                                        {"s":"CRYPTOCAP:SOL","d":"솔라나"}
+                                    ]
+                                }
+                            ]
+                        }
+                        </script>
+                    </div>
+                </div>
+                <div class="widget-box" style="height:400px">
+                    <div class="tradingview-widget-container" style="height:100%">
+                        <div class="tradingview-widget-container__widget" style="height:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js">
+                        {
+                            "colorTheme":"dark",
+                            "isTransparent":true,
+                            "width":"100%",
+                            "height":"100%",
+                            "locale":"kr",
+                            "importanceFilter":"-1,0,1"
+                        }
+                        </script>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>📈 실시간 주식 대시보드 · 데이터: TradingView · 투자 참고용이며 투자 책임은 본인에게 있습니다</p>
+        <p style="margin-top:4px">© 2026 Stock Dashboard</p>
+    </footer>
+
+    <script>
+        // Clock
+        function updateClock(){
+            const now=new Date();
+            document.getElementById('clock').textContent=now.toLocaleString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+        }
+        setInterval(updateClock,1000);
+        updateClock();
+
+        // Market status (KRX: 9:00-15:30 KST, Mon-Fri)
+        function updateMarketStatus(){
+            const now=new Date();
+            const day=now.getDay();
+            const h=now.getHours();
+            const m=now.getMinutes();
+            const mins=h*60+m;
+            const isWeekday=day>=1&&day<=5;
+            const isOpen=isWeekday&&mins>=540&&mins<=930;
+            const dot=document.getElementById('statusDot');
+            const text=document.getElementById('statusText');
+            if(isOpen){
+                dot.className='status-dot status-open';
+                text.textContent='장 운영 중';
+                text.style.color='var(--green)';
+            }else{
+                dot.className='status-dot status-closed';
+                text.textContent='장 마감';
+                text.style.color='var(--red)';
+            }
+        }
+        setInterval(updateMarketStatus,60000);
+        updateMarketStatus();
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab=>{
+            tab.addEventListener('click',function(){
+                document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('tab-'+this.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Portfolio (symbol-overview 위젯 사용 + 삭제 버튼 카드 헤더에 분리)
+        const STORAGE_KEY='kr_portfolio';
+        const STOCK_NAMES={'005930':'삼성전자','000660':'SK하이닉스','035720':'카카오','005380':'현대차','006400':'삼성SDI','051910':'LG화학','035420':'NAVER','068270':'셀트리온','373220':'LG에너지솔루션','055550':'신한지주','003670':'포스코퓨처엠','105560':'KB금융','207940':'삼성바이오로직스','000270':'기아','034730':'SK','028260':'삼성물산','012330':'현대모비스','096770':'SK이노베이션','066570':'LG전자','030200':'KT','017670':'SK텔레콤','003550':'LG','032830':'삼성생명','015760':'한국전력','033780':'KT&G'};
+        function getPortfolio(){return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]')}
+        function savePortfolio(list){localStorage.setItem(STORAGE_KEY,JSON.stringify(list))}
+
+        document.getElementById('addBtn').addEventListener('click',addStock);
+        document.getElementById('stockInput').addEventListener('keypress',function(e){if(e.key==='Enter')addStock()});
+        document.getElementById('clearAllBtn').addEventListener('click',function(){if(confirm('포트폴리오를 전체 삭제하시겠습니까?')){savePortfolio([]);renderPortfolio()}});
+
+        function addStock(){
+            const input=document.getElementById('stockInput');
+            let code=input.value.trim().replace(/\s/g,'');
+            if(!code)return;
+            // 숫자만 입력된 경우 앞에 0 패딩
+            if(/^\d+$/.test(code)){code=code.padStart(6,'0')}
+            const portfolio=getPortfolio();
+            if(portfolio.includes(code)){alert('이미 추가된 종목입니다.');input.value='';return}
+            portfolio.push(code);
+            savePortfolio(portfolio);
+            input.value='';
+            renderPortfolio();
+        }
+
+        document.getElementById('suggestList').addEventListener('click',function(e){
+            const chip=e.target.closest('.suggest-chip');
+            if(!chip)return;
+            const code=chip.dataset.code;
+            const portfolio=getPortfolio();
+            if(!portfolio.includes(code)){portfolio.push(code);savePortfolio(portfolio);renderPortfolio()}
+        });
+
+        // 이벤트 위임으로 삭제 처리 (iframe 위에 버튼이 안 먹히는 문제 해결)
+        document.getElementById('portfolioGrid').addEventListener('click',function(e){
+            const btn=e.target.closest('.remove-btn');
+            if(!btn)return;
+            const code=btn.dataset.code;
+            if(!code)return;
+            let portfolio=getPortfolio();
+            portfolio=portfolio.filter(c=>c!==code);
+            savePortfolio(portfolio);
+            renderPortfolio();
+        });
+
+        function renderPortfolio(){
+            const portfolio=getPortfolio();
+            const grid=document.getElementById('portfolioGrid');
+            const empty=document.getElementById('emptyState');
+            const clearBtn=document.getElementById('clearAllBtn');
+            if(portfolio.length===0){grid.innerHTML='';empty.style.display='block';clearBtn.style.display='none';return}
+            empty.style.display='none';
+            clearBtn.style.display='inline-flex';
+            grid.innerHTML='';
+            portfolio.forEach(code=>{
+                const name=STOCK_NAMES[code]||code;
+                const card=document.createElement('div');
+                card.className='portfolio-card';
+                // 헤더 (삭제 버튼이 iframe 밖에 있어서 항상 클릭 가능)
+                const header=document.createElement('div');
+                header.className='portfolio-card-header';
+                header.innerHTML='<span class="portfolio-card-title">'+name+' ('+code+')</span><button class="remove-btn" data-code="'+code+'" title="삭제"><i class="fas fa-times"></i></button>';
+                card.appendChild(header);
+                // 위젯 (symbol-overview 사용)
+                const wc=document.createElement('div');
+                wc.className='tradingview-widget-container portfolio-widget';
+                const wd=document.createElement('div');
+                wd.className='tradingview-widget-container__widget';
+                wd.style.height='100%';
+                wc.appendChild(wd);
+                const s=document.createElement('script');
+                s.type='text/javascript';
+                s.src='https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js';
+                s.text=JSON.stringify({"symbols":[[name,"KRX:"+code+"|ALL"]],"chartOnly":false,"width":"100%","height":"100%","locale":"kr","colorTheme":"dark","autosize":true,"showVolume":false,"showMA":false,"hideDateRanges":false,"hideMarketStatus":true,"hideSymbolLogo":false,"scalePosition":"right","scaleMode":"Normal","fontFamily":"Noto Sans KR","fontSize":"10","noTimeScale":false,"valuesTracking":"1","changeMode":"price-and-percent","chartType":"area","lineWidth":2,"lineType":0,"dateRanges":["1d|1","1m|30","3m|60","12m|1D","60m|1W","all|1M"]});
+                wc.appendChild(s);
+                card.appendChild(wc);
+                grid.appendChild(card);
+            });
+        }
+        renderPortfolio();
+    </script>
+</body>
+</html>
